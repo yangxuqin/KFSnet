@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAT 任务控制面板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #0f0f13;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 背景装饰 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 60%, rgba(0, 170, 255, 0.03) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes bgShift {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-5%, -5%); }
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .title {
+            font-size: 1.8rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 50px;
+            letter-spacing: 2px;
+        }
+
+        /* 状态指示器 */
+        .status-wrapper {
+            margin-bottom: 50px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 28px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.4s ease;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.4s ease;
+        }
+
+        .status-dot.running {
+            background: #00ff88;
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.6), 0 0 30px rgba(0, 255, 136, 0.2);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.stopped {
+            background: #ff4757;
+            box-shadow: 0 0 8px rgba(255, 71, 87, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.15); }
+        }
+
+        .status-text {
+            font-size: 0.95rem;
+            color: #888;
+            transition: color 0.4s ease;
+        }
+
+        .status-text.running { color: #00ff88; }
+        .status-text.stopped { color: #ff4757; }
+
+        /* 按钮 */
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            padding: 16px 48px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            letter-spacing: 2px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00cc6a, #00ff88);
+            color: #000;
+        }
+
+        .btn-start:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-start:not(:disabled):active {
+            transform: translateY(0);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #cc3040, #ff4757);
+            color: #fff;
+        }
+
+        .btn-stop:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 71, 87, 0.3);
+        }
+
+        .btn-stop:not(:disabled):active {
+            transform: translateY(0);
+        }
+
+        /* 消息提示 */
+        .message {
+            font-size: 0.85rem;
+            color: #555;
+            min-height: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .message.success { color: #00ff88; }
+        .message.error { color: #ff4757; }
+
+        /* 底部信息 */
+        .footer {
+            margin-top: 60px;
+            font-size: 0.75rem;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        .bat-name {
+            color: #444;
+        }
+
+        /* 动画 */
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">BAT CONTROL</div>
+        <div class="subtitle">TASK MANAGER</div>
+
+        <div class="status-wrapper">
+            <div class="status-indicator" id="statusBox">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">检测中...</span>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-start" id="btnStart" disabled onclick="startBat()">启动</button>
+            <button class="btn btn-stop" id="btnStop" disabled onclick="stopBat()">停止</button>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="footer">
+            <span class="bat-name" id="batName">loading...</span>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载后立即开始轮询
+        let pollTimer = null;
+        let isStarting = false;
+        let isStopping = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            pollStatus();
+            pollTimer = setInterval(pollStatus, 1500);
+        });
+
+        // 带令牌的 fetch 封装：自动附加 X-Auth-Token 头，401 时提示输入令牌
+        async function apiFetch(path, options = {}) {
+            const token = localStorage.getItem('bat_token') || '';
+            if (token) {
+                options.headers = Object.assign({ 'X-Auth-Token': token }, options.headers);
+            }
+            const resp = await fetch(path, options);
+            if (resp.status === 401) {
+                const input = prompt('请输入访问令牌（Token）:');
+                if (input && input.trim()) {
+                    localStorage.setItem('bat_token', input.trim());
+                    return apiFetch(path, options);
+                }
+                throw new Error('未授权');
+            }
+            return resp;
+        }
+
+        async function pollStatus() {
+            try {
+                const resp = await apiFetch('/api/status');
+                const data = await resp.json();
+
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                const btnStart = document.getElementById('btnStart');
+                const btnStop = document.getElementById('btnStop');
+                const batName = document.getElementById('batName');
+
+                if (data.bat_name) {
+                    batName.textContent = data.bat_name;
+                }
+
+                if (data.running) {
+                    dot.className = 'status-dot running';
+                    text.className = 'status-text running';
+                    text.textContent = '运行中' + (data.pid ? ' · PID ' + data.pid : '');
+                    btnStart.disabled = true;
+                    btnStop.disabled = false;
+                } else {
+                    dot.className = 'status-dot stopped';
+                    text.className = 'status-text stopped';
+                    text.textContent = '已停止';
+                    btnStart.disabled = false;
+                    btnStop.disabled = true;
+                }
+            } catch (e) {
+                document.getElementById('statusText').textContent = e.message === '未授权' ? '未授权' : '连接失败';
+                document.getElementById('statusDot').className = 'status-dot stopped';
+            }
+        }
+
+        async function startBat() {
+            if (isStarting) return;
+            isStarting = true;
+            const btn = document.getElementById('btnStart');
+            btn.disabled = true;
+            showMessage('正在启动...', '');
+
+            try {
+                const resp = await apiFetch('/api/start', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (e) {
+                showMessage('请求失败' + (e.message === '未授权' ? ' - 未授权' : ''), 'error');
+            }
+
+            isStarting = false;
+            pollStatus();
+        }
+
+        async function stopBat() {
+            if (isStopping) return;
+            isStopping = true;
+            const btn = document.getElementById('btnStop');
+            btn.disabled = true;
+            showMessage('正在停止...', '');
+
+            try {
+                const resp = await apiFetch('/api/stop', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (e) {
+                showMessage('请求失败', 'error');
+            }
+
+            isStopping = false;
+            pollStatus();
+        }
+
+        function showMessage(text, type) {
+            const el = document.getElementById('message');
+            el.textContent = text;
+            el.className = 'message ' + (type || '');
+            if (type) {
+                el.classList.add('fade-in');
+                setTimeout(() => el.classList.remove('fade-in'), 500);
+            }
+            // 5秒后自动清除提示
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => {
+                el.textContent = '';
+                el.className = 'message';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

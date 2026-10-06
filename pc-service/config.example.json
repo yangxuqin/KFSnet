@@ -1,0 +1,8 @@
+{
+    "bat_path": "C:\\path\\to\\your\\task.bat",
+    "host": "0.0.0.0",
+    "port": 8010,
+    "token": "",
+    "log_file": "",
+    "task_name": "KFSnetService"
+}

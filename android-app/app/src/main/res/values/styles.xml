@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.BatController" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:statusBarColor">#0f0f13</item>
+        <item name="android:navigationBarColor">#0f0f13</item>
+    </style>
+
+    <style name="Theme.BatController.NoActionBar" parent="Theme.BatController">
+        <item name="android:statusBarColor">#0f0f13</item>
+    </style>
+</resources>

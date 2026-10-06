@@ -1,0 +1,2 @@
+rootProject.name = "BatController"
+include ':app'
