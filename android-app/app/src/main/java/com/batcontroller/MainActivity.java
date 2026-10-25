@@ -89,20 +89,20 @@ public class MainActivity extends android.app.Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setSupportZoom(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_MODE_COMPATIBILITY);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
-            public void onPageStarted(String url, Bitmap favicon) {
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 statusText.setText("正在连接...");
                 statusText.setVisibility(View.VISIBLE);
             }
 
             @Override
-            public void onPageFinished(String view) {
+            public void onPageFinished(WebView view, String url) {
                 statusText.setVisibility(View.GONE);
             }
 
@@ -148,76 +148,44 @@ public class MainActivity extends android.app.Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(48, 32, 48, 32);
 
-        EditText input = new EditText(this);
-        input.setText(serverUrl);
-        input.setSingleLine(true);
-        layout.addView(input);
+        EditText urlInput = new EditText(this);
+        urlInput.setHint("服务器地址，例如 http://192.168.1.100:8010");
+        urlInput.setSingleLine(true);
+        urlInput.setText(serverUrl);
+        layout.addView(urlInput);
 
         EditText tokenInput = new EditText(this);
-        tokenInput.setText(token);
+        tokenInput.setHint("X-Auth-Token（可选）");
         tokenInput.setSingleLine(true);
-        tokenInput.setHint("访问令牌（可选，留空则不填）");
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.topMargin = 16;
-        layout.addView(tokenInput, params);
+        tokenInput.setText(token);
+        layout.addView(tokenInput);
 
         new AlertDialog.Builder(this)
                 .setTitle("服务器设置")
-                .setMessage("输入电脑控制服务的地址\n格式: http://IP地址:8010")
                 .setView(layout)
-                .setPositiveButton("连接", new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        String url = input.getText().toString().trim();
-                        String newToken = tokenInput.getText().toString().trim();
-                        if (!url.isEmpty()) {
-                            if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                                url = "http://" + url;
-                            }
-                            serverUrl = url;
-                            token = newToken;
-                            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                                    .edit()
-                                    .putString(KEY_URL, serverUrl)
-                                    .putString(KEY_TOKEN, token)
-                                    .apply();
-                            // 直接重新加载即可，WebView 已配置好（避免重复 setup）
-                            webView.loadUrl(serverUrl);
-                        }
-                    }
+                .setPositiveButton("保存", (dialog, which) -> {
+                    serverUrl = urlInput.getText().toString().trim();
+                    token = tokenInput.getText().toString().trim();
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                            .putString(KEY_URL, serverUrl)
+                            .putString(KEY_TOKEN, token)
+                            .apply();
+                    webView.loadUrl(serverUrl);
                 })
                 .setNegativeButton("取消", null)
                 .show();
     }
 
     private String guessMimeType(String path) {
-        if (path.endsWith(".js")) return "application/javascript";
-        if (path.endsWith(".css")) return "text/css";
-        if (path.endsWith(".png")) return "image/png";
-        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-        if (path.endsWith(".gif")) return "image/gif";
-        if (path.endsWith(".svg")) return "image/svg+xml";
-        if (path.endsWith(".html") || path.endsWith(".htm")) return "text/html";
-        if (path.endsWith(".json")) return "application/json";
-        return "text/html";
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        if (webView != null) {
-            webView.destroy();
-        }
-        super.onDestroy();
+        if (path == null) return "application/octet-stream";
+        String lower = path.toLowerCase();
+        if (lower.endsWith(".html") || lower.endsWith(".htm")) return "text/html";
+        if (lower.endsWith(".css")) return "text/css";
+        if (lower.endsWith(".js")) return "application/javascript";
+        if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        return "application/octet-stream";
     }
 }
